@@ -15,14 +15,14 @@ filters out outliers, and uses the mean of the remaining distances as the report
 Dependencies:
 - rclpy: ROS2 Python client library
 - sensor_msgs.msg: For receiving LaserScan data
-- std_msgs.msg: For publishing Float32MultiArray (used to send range data)
+- std_msgs.msg: For publishing Float64MultiArray (used to send range data)
 - numpy: For mathematical operations (angle conversion and outlier filtering)
 """
 
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float64MultiArray
 import numpy as np
 
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy
@@ -36,11 +36,11 @@ class ObjectRange(Node):
     ROS2 Node for computing the range to an object based on lidar data and object's angles.
 
     Subscribes to:
-    - /object_angle (Float32MultiArray): The angles at which the object is detected.
+    - /object_angle (Float64MultiArray): The angles at which the object is detected.
     - /scan (LaserScan): Lidar scan data for distance measurements.
 
     Publishes:
-    - object_range (Float32MultiArray): The computed mean range to the object, along with a timestamp.
+    - object_range (Float64MultiArray): The computed mean range to the object, along with a timestamp.
     """
 
     def __init__(self):
@@ -54,7 +54,7 @@ class ObjectRange(Node):
 
         # Subscriber to the object's angle(s)
         self.angle_subscriber = self.create_subscription(
-            Float32MultiArray, '/object_angle', self.angle_callback, 10
+            Float64MultiArray, '/object_angle', self.angle_callback, 10
         )
 
         # Subscriber to lidar scan data
@@ -63,14 +63,14 @@ class ObjectRange(Node):
         )
 
         # Publisher for object range data
-        self.range_publisher = self.create_publisher(Float32MultiArray, 'object_range', 10)
+        self.range_publisher = self.create_publisher(Float64MultiArray, 'object_range', 10)
 
     def angle_callback(self, msg):
         """
         Callback function for handling incoming object angle data.
 
         Args:
-            msg (Float32MultiArray): Object angle information. Expected structure:
+            msg (Float64MultiArray): Object angle information. Expected structure:
                                       [timestamp, flag, angle1, angle2, ...]
         """
         self.angle_data = msg.data
@@ -108,11 +108,18 @@ class ObjectRange(Node):
 
         for angle in angles:
             # Adjust the angle to match the lidar's coordinate frame.
-            # (Assumes lidar scan 0 is at the front; adjust if needed.)
-            adjusted_angle = -angle + np.pi
+            if angle < 0:
+                adjusted_angle = -angle
+            else:
+                adjusted_angle = 2*np.pi - angle
 
             # Compute the index into the lidar scan array.
             index = int((adjusted_angle - lidar_msg.angle_min) / lidar_msg.angle_increment)
+
+            if angle < 0:
+                adjusted_angle = -angle
+            else:
+                adjusted_angle = 2*np.pi - angle
 
             # Check if the index is within the valid range.
             if index < 0 or index >= len(lidar_msg.ranges):
@@ -153,15 +160,16 @@ class ObjectRange(Node):
             mean_distance = -1.0
 
         # Build and publish the range message.
-        range_msg = Float32MultiArray()
+        range_msg = Float64MultiArray()
         # Use the lidar header's timestamp if available.
         timestamp = float(lidar_msg.header.stamp.sec + lidar_msg.header.stamp.nanosec * 1e-9)
         # The message structure is: [timestamp, flag, mean_distance]
         flag = 1.0 if mean_distance != -1.0 else 0.0
         range_msg.data = [timestamp, flag, mean_distance]
 
-        self.get_logger().info(f"Computed Mean Range: {mean_distance:.3f} (from distances: {valid_distances})")
+        # self.get_logger().info(f"Time: {timestamp} | Computed Mean Range: {mean_distance:.3f} (from distances: {valid_distances})")
         self.range_publisher.publish(range_msg)
+
 
 def main(args=None):
     """

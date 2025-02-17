@@ -16,7 +16,8 @@ to align the object with the center of the robot's camera view.
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float64MultiArray
+import numpy as np
 
 
 class PID:
@@ -82,8 +83,8 @@ class ChaseObject(Node):
     ROS2 Node that uses PID control to adjust the robot's movement to center an object in the camera view.
 
     Subscribes to:
-    - /object_angle (Float32MultiArray): The current angle to the object from the robot's center.
-    - /object_range (Float32MultiArray): The current range to the object from the robot.
+    - /object_angle (Float64MultiArray): The current angle to the object from the robot's center.
+    - /object_range (Float64MultiArray): The current range to the object from the robot.
 
     Publishes:
     - /cmd_vel (Twist): The velocity commands to the robot to adjust its position and orientation.
@@ -96,21 +97,21 @@ class ChaseObject(Node):
         super().__init__('track_object')
 
         # Create PID controllers for angle and range adjustments
-        self.angle_PID = PID(Kp=0.02, Ki=0.02, Kd=0.02)
-        self.range_PID = PID(Kp=0.01, Ki=0.01, Kd=0.01)
+        self.angle_PID = PID(Kp=3.0, Ki=0.1, Kd=0.1)
+        self.range_PID = PID(Kp=1.0, Ki=0.1, Kd=0.1)
         
         self.angle_data = None
         self.range_data = None
-        self.target_distance = 0.2  # Target distance to the object (meters)
+        self.target_distance = 0.3  # Target distance to the object (meters)
 
         # Subscribers & Publishers
         # Subscribe to object angle data
         self.angle_subscriber = self.create_subscription(
-            Float32MultiArray, '/object_angle', self.object_angle_callback, 10
+            Float64MultiArray, '/object_angle', self.object_angle_callback, 10
         )
         # Subscribe to object range data
         self.range_subscriber = self.create_subscription(
-            Float32MultiArray, '/object_range', self.object_range_callback, 10
+            Float64MultiArray, '/object_range', self.object_range_callback, 10
         )
         # Publish velocity commands
         self.publisher = self.create_publisher(Twist, '/cmd_vel', 10)
@@ -122,6 +123,7 @@ class ChaseObject(Node):
 
     def object_range_callback(self, msg):
         """Callback for object range data."""
+        
         self.range_data = msg.data
         self.chase()
 
@@ -136,20 +138,26 @@ class ChaseObject(Node):
         # If no object or invalid data, stop the robot
         if self.angle_data[1] == 0.0 or self.range_data[1] == 0.0:
             twist = Twist()
-            twist.angular.z = 0
-            twist.linear.x = 0
+            twist.angular.z = 0.0
+            twist.linear.x = 0.0
             self.publisher.publish(twist)
+            self.get_logger().info(f'STOPPING: angle flag {self.angle_data[1]} | range flag {self.range_data[1]}')
             return
 
         # Compute the error in angle and range
-        angle_error = -self.angle_data[2]
+        angle_error = -np.mean(self.angle_data[2:])
         range_error = self.range_data[2] - self.target_distance
         # Use the timestamp from the lidar data for both angle and range time
         t_angle = self.range_data[0]
         t_range = self.range_data[0]
 
+        if abs(angle_error) < 0.05:
+            self.angle_PID.reset()
+        if abs(range_error) < 0.1:
+            self.range_PID.reset()
+
         # Log the errors for debugging
-        self.get_logger().info(f"Angle Error: {angle_error} | Range Error: {range_error} | Time: {t_range}")
+        self.get_logger().info(f"Angle Error: {angle_error} | Range Error: {range_error} Range: { self.range_data[2]} | Time: {t_range}")
 
         # If valid angle data, compute control efforts
         if self.angle_data[1] == 1.0:
@@ -157,7 +165,7 @@ class ChaseObject(Node):
             range_effort = self.range_PID(range_error, t_range)
 
             # Clip the effort values to the valid range
-            angle_effort = max(min(angle_effort, 1.0), -1.0)
+            angle_effort = max(min(angle_effort, 2.0), -2.0)
             range_effort = max(min(range_effort, 1.0), -1.0)
 
             # Create and publish the Twist message
@@ -172,8 +180,8 @@ class ChaseObject(Node):
 
             # Stop the robot if no valid object is tracked
             twist = Twist()
-            twist.angular.z = 0
-            twist.linear.x = 0
+            twist.angular.z = 0.0
+            twist.linear.x = 0.0
             self.publisher.publish(twist)
 
         # Log the twist command for debugging

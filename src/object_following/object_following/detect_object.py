@@ -17,7 +17,7 @@ processed image (containing the bounding box and sample points of the detected o
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import CompressedImage
-from std_msgs.msg import Int32MultiArray, Float32MultiArray
+from std_msgs.msg import Int32MultiArray, Float64MultiArray
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
@@ -31,7 +31,7 @@ class DetectObject(Node):
     - /selected_hsv (Int32MultiArray): HSV values used to identify the object.
 
     Publishes:
-    - /object_angle (Float32MultiArray): The computed angles to the object relative to the camera's field of view.
+    - /object_angle (Float64MultiArray): The computed angles to the object relative to the camera's field of view.
     - /tracked_image/compressed (CompressedImage): The image with the tracked object, annotated with a bounding box and sample points.
     """
 
@@ -50,7 +50,7 @@ class DetectObject(Node):
         )
 
         # Publishers for the object angles and tracked image
-        self.angle_publisher = self.create_publisher(Float32MultiArray, '/object_angle', 10)
+        self.angle_publisher = self.create_publisher(Float64MultiArray, '/object_angle', 10)
         self.tracked_image_publisher = self.create_publisher(CompressedImage, '/tracked_image/compressed', 10)
 
         # Initialize CVBridge for converting ROS messages to OpenCV images
@@ -119,21 +119,23 @@ class DetectObject(Node):
                         angle_sample = np.arctan2(np.sin(angle_sample), np.cos(angle_sample))
                         sampled_angles.append(angle_sample)
 
-                        # Optionally, annotate the sample point on the frame (using the vertical center of the bounding box)
+                        # Annotate the sample point on the frame (using the vertical center of the bounding box)
                         cv2.circle(frame, (int(sample_x), int(y + h / 2)), 3, (255, 0, 0), -1)
 
                     # Publish angle information.
                     # The message data consists of a timestamp, a flag (1.0 indicating detection), followed by the sampled angles.
-                    angle_msg = Float32MultiArray()
-                    angle_msg.data = [float(self.get_clock().now().to_msg().sec), 1.0] + sampled_angles
+                    angle_msg = Float64MultiArray()
+                    timestamp = self.get_clock().now().nanoseconds * 1e-9
+                    angle_msg.data = [timestamp, 1.0] + sampled_angles
                     self.angle_publisher.publish(angle_msg)
 
                     # Annotate the frame with a bounding box
                     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
             else:
                 # If no object is detected, publish zeros.
-                angle_msg = Float32MultiArray()
-                angle_msg.data = [float(self.get_clock().now().to_msg().sec), 0.0] + [0.0] * self.sample_count
+                angle_msg = Float64MultiArray()
+                timestamp = self.get_clock().now().nanoseconds * 1e-9
+                angle_msg.data = [timestamp, 0.0] + [0.0] * self.sample_count
                 self.angle_publisher.publish(angle_msg)
                 self.get_logger().info("No object found")
 
