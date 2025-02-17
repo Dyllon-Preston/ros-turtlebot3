@@ -27,7 +27,7 @@ class DetectObject(Node):
     ROS2 Node for detecting an object in an image based on a tracked HSV value.
 
     Subscribes to:
-    - /simulated_camera/image_raw/compressed (CompressedImage): Compressed image from the camera.
+    - /image_raw/compressed (CompressedImage): Compressed image from the camera.
     - /selected_hsv (Int32MultiArray): HSV values used to identify the object.
 
     Publishes:

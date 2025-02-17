@@ -26,7 +26,7 @@ class SelectObject(Node):
     ROS2 Node for selecting an object in an image based on its HSV value.
 
     Subscribes to:
-    - /simulated_camera/image_raw/compressed (CompressedImage): Compressed image from the camera.
+    - /image_raw/compressed (CompressedImage): Compressed image from the camera.
     - /tracked_image/compressed (CompressedImage): Processed image with tracked object annotations.
 
     Publishes:
@@ -41,7 +41,7 @@ class SelectObject(Node):
 
         # Subscribers to the camera and tracked image topics
         self._img_subscriber = self.create_subscription(
-            CompressedImage, '/simulated_camera/image_raw/compressed', self._image_callback, 10
+            CompressedImage, '/image_raw/compressed', self._image_callback, 10
         )
         self._tracked_img_subscriber = self.create_subscription(
             CompressedImage, '/tracked_image/compressed', self._tracked_image_callback, 10
