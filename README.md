@@ -1,6 +1,6 @@
 # ros-turtlebot3
 
-**ros-turtlebot3** is a suite of ROS2 packages designed for autonomous object detection, tracking, and following. This project demonstrates robust integration of computer vision, lidar sensing, and control algorithms to enable a robot to detect, track, and follow objects in dynamic environments. The package is developed with modularity in mind, facilitating future extensions for more complex tasks such as advanced path planning, obstacle avoidance, and multi-object tracking.
+**ros-turtlebot3** is a suite of ROS2 packages developed as part of AE 7785, designed for autonomous object detection, tracking, and following. This project demonstrates robust integration of computer vision, lidar sensing, and control algorithms to enable a robot to detect, track, and follow objects in dynamic environments. The package is developed with modularity in mind, facilitating future extensions for more complex tasks such as advanced path planning, obstacle avoidance, and multi-object tracking.
 
 ---
 
