@@ -118,9 +118,7 @@ This project is licensed under the [Apache 2.0 License](LICENSE).
 
 ---
 
-*Object Follower* is a comprehensive project that demonstrates cutting-edge techniques in robotics and autonomous systems. Its modular design and future-ready architecture make it an excellent addition to any robotics portfolio or resume.
-
-For more information, please visit [GitHub Repository](https://github.com/yourusername/object_follower). 
+*Object Follower* is a comprehensive project that demonstrates techniques in robotics and autonomous systems.
 
 Feel free to reach out for collaboration or if you have any questions regarding the project!
 
