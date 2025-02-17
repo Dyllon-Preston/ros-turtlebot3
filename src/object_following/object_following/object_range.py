@@ -25,6 +25,12 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Float32MultiArray
 import numpy as np
 
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy
+qos_profile = QoSProfile(
+    depth=10,
+    reliability=QoSReliabilityPolicy.BEST_EFFORT
+)
+
 class ObjectRange(Node):
     """
     ROS2 Node for computing the range to an object based on lidar data and object's angles.
@@ -53,7 +59,7 @@ class ObjectRange(Node):
 
         # Subscriber to lidar scan data
         self.lidar_subscriber = self.create_subscription(
-            LaserScan, '/scan', self.lidar_callback, 10
+            LaserScan, '/scan', self.lidar_callback, qos_profile
         )
 
         # Publisher for object range data
