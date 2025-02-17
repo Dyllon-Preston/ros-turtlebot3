@@ -2,7 +2,7 @@
 
 """
 Object Detection Node: Uses HSV masking to find the center of a tracked object in a camera image and
-publishes the local angle to the object and the tracked image.
+publishes the local angles to the object along its width and the tracked image.
 
 Group Name: Levi
 Group Members:
@@ -10,8 +10,8 @@ Group Members:
 - Richi Dubey
 
 This ROS2 node subscribes to the camera image (compressed), applies an HSV mask to identify the object, computes
-its angle relative to the camera, and publishes the angle along with the processed image (containing the
-bounding box and center point of the detected object).
+sampled angles across the object's width relative to the camera's field of view, and publishes the angles along with the
+processed image (containing the bounding box and sample points of the detected object).
 """
 
 import rclpy
@@ -31,8 +31,8 @@ class DetectObject(Node):
     - /selected_hsv (Int32MultiArray): HSV values used to identify the object.
 
     Publishes:
-    - /object_angle (Float32MultiArray): The computed angle to the object relative to the camera's field of view.
-    - /tracked_image/compressed (CompressedImage): The image with the tracked object, annotated with a bounding box and center.
+    - /object_angle (Float32MultiArray): The computed angles to the object relative to the camera's field of view.
+    - /tracked_image/compressed (CompressedImage): The image with the tracked object, annotated with a bounding box and sample points.
     """
 
     def __init__(self):
@@ -49,7 +49,7 @@ class DetectObject(Node):
             Int32MultiArray, '/selected_hsv', self._hsv_callback, 10
         )
 
-        # Publishers for the object angle and tracked image
+        # Publishers for the object angles and tracked image
         self.angle_publisher = self.create_publisher(Float32MultiArray, '/object_angle', 10)
         self.tracked_image_publisher = self.create_publisher(CompressedImage, '/tracked_image/compressed', 10)
 
@@ -59,6 +59,9 @@ class DetectObject(Node):
 
         # Camera field of view (in radians)
         self.fov = 62.2 * np.pi / 180  # Camera field of view in radians
+
+        # Number of samples along the detected object’s width
+        self.sample_count = 11
 
     def _hsv_callback(self, msg):
         """
@@ -73,7 +76,7 @@ class DetectObject(Node):
     def _image_callback(self, msg):
         """
         Callback function for processing incoming image data, detecting objects based on HSV, 
-        and publishing the object angle and annotated image.
+        sampling angles along the object's width, and publishing the angles and annotated image.
 
         Args:
             msg (CompressedImage): The compressed image message containing the camera feed.
@@ -100,32 +103,41 @@ class DetectObject(Node):
                 largest_contour = max(contours, key=cv2.contourArea)
 
                 if cv2.contourArea(largest_contour) > 500:  # Threshold to filter noise
-                    # Get bounding box and center of the largest contour
+                    # Get bounding box of the largest contour
                     x, y, w, h = cv2.boundingRect(largest_contour)
-                    center = [x + w // 2, y + h // 2]
 
-                    # Convert center to angle relative to the camera's field of view
-                    angle = (center[0] - frame.shape[1] // 2) * self.fov / frame.shape[1]
-                    angle = np.arctan2(np.sin(angle), np.cos(angle))
+                    # Initialize list to store sampled angles
+                    sampled_angles = []
 
-                    # Publish angle information
+                    # Sample angles along the object's width
+                    for i in range(self.sample_count):
+                        # Compute the x-coordinate for this sample (evenly spaced along the width)
+                        sample_x = x + (w * i) / (self.sample_count - 1)
+                        # Compute the angle relative to the center of the image
+                        angle_sample = (sample_x - frame.shape[1] // 2) * self.fov / frame.shape[1]
+                        # Normalize the angle between -pi and pi
+                        angle_sample = np.arctan2(np.sin(angle_sample), np.cos(angle_sample))
+                        sampled_angles.append(angle_sample)
+
+                        # Optionally, annotate the sample point on the frame (using the vertical center of the bounding box)
+                        cv2.circle(frame, (int(sample_x), int(y + h / 2)), 3, (255, 0, 0), -1)
+
+                    # Publish angle information.
+                    # The message data consists of a timestamp, a flag (1.0 indicating detection), followed by the sampled angles.
                     angle_msg = Float32MultiArray()
-                    angle_msg.data = [float(self.get_clock().now().to_msg().sec), 1.0, angle]
+                    angle_msg.data = [float(self.get_clock().now().to_msg().sec), 1.0] + sampled_angles
                     self.angle_publisher.publish(angle_msg)
 
-                    # Annotate the frame with a bounding box and center point
+                    # Annotate the frame with a bounding box
                     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                    cv2.circle(frame, tuple(center), 5, (0, 0, 255), -1)
-
             else:
-                # If no object is detected, set the angle to 0 and log a message
-                angle = 0
+                # If no object is detected, publish zeros.
                 angle_msg = Float32MultiArray()
-                angle_msg.data = [float(self.get_clock().now().to_msg().sec), 0.0, angle]
+                angle_msg.data = [float(self.get_clock().now().to_msg().sec), 0.0] + [0.0] * self.sample_count
                 self.angle_publisher.publish(angle_msg)
                 self.get_logger().info("No object found")
 
-        # Convert the annotated image back to a compressed image message
+        # Convert the annotated image back to a compressed image message and publish it
         tracked_image_msg = self.bridge.cv2_to_compressed_imgmsg(frame)
         self.tracked_image_publisher.publish(tracked_image_msg)
 

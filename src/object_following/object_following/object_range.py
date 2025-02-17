@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 
 """
-ObjectRange Node: Computes the range to a detected object using lidar data and the object's angle.
+ObjectRange Node: Computes the range to a detected object using lidar data and the object's angles.
 
 Group Name: Levi
 Group Members:
 - Dyllon Preston
 - Richi Dubey
 
-This ROS2 node subscribes to the object's angle and lidar scan data, computes the range of the detected object,
-and publishes the range along with a timestamp. The lidar data is indexed based on the angle of the object.
+This ROS2 node subscribes to the object's angles and lidar scan data, computes the range of the detected object,
+and publishes the range along with a timestamp. For multiple angles, it collects the distance at each angle,
+filters out outliers, and uses the mean of the remaining distances as the reported range.
 
 Dependencies:
 - rclpy: ROS2 Python client library
 - sensor_msgs.msg: For receiving LaserScan data
 - std_msgs.msg: For publishing Float32MultiArray (used to send range data)
-- numpy: For mathematical operations (angle conversion)
+- numpy: For mathematical operations (angle conversion and outlier filtering)
 """
 
 import rclpy
@@ -26,14 +27,14 @@ import numpy as np
 
 class ObjectRange(Node):
     """
-    ROS2 Node for computing the range to an object based on lidar data and object's angle.
+    ROS2 Node for computing the range to an object based on lidar data and object's angles.
 
     Subscribes to:
-    - /object_angle (Float32MultiArray): The angle at which the object is detected
-    - /scan (LaserScan): Lidar scan data for distance measurements
+    - /object_angle (Float32MultiArray): The angles at which the object is detected.
+    - /scan (LaserScan): Lidar scan data for distance measurements.
 
     Publishes:
-    - object_range (Float32MultiArray): The range to the object, along with a timestamp
+    - object_range (Float32MultiArray): The computed mean range to the object, along with a timestamp.
     """
 
     def __init__(self):
@@ -45,7 +46,7 @@ class ObjectRange(Node):
         self.angle_data = None
         self.lidar_data = None
 
-        # Subscriber to the object's angle
+        # Subscriber to the object's angle(s)
         self.angle_subscriber = self.create_subscription(
             Float32MultiArray, '/object_angle', self.angle_callback, 10
         )
@@ -63,10 +64,12 @@ class ObjectRange(Node):
         Callback function for handling incoming object angle data.
 
         Args:
-            msg (Float32MultiArray): Object angle information
+            msg (Float32MultiArray): Object angle information. Expected structure:
+                                      [timestamp, flag, angle1, angle2, ...]
         """
         self.angle_data = msg.data
-        if self.angle_data[1] == 1:  # Validates if the object is being tracked
+        # Process only if the object is being tracked (flag == 1.0)
+        if self.angle_data[1] == 1.0:
             self.compute_range()
 
     def lidar_callback(self, msg):
@@ -74,54 +77,85 @@ class ObjectRange(Node):
         Callback function for handling incoming lidar scan data.
 
         Args:
-            msg (LaserScan): Lidar scan data containing distances and angles
+            msg (LaserScan): Lidar scan data containing distances and angles.
         """
         self.lidar_data = msg
         self.compute_range()
 
     def compute_range(self):
         """
-        Computes the range to the detected object based on the lidar data and object angle.
-        The angle is adjusted to match the lidar data's coordinate system, and the range is
-        calculated by indexing the lidar scan at the appropriate angle.
+        Computes the range to the detected object based on lidar data and object angles.
+        For each angle in the message, the corresponding lidar distance is extracted.
+        Outlier distances are filtered out using an IQR-based approach, and the mean of the remaining
+        distances is computed as the final reported range.
         """
         if self.lidar_data is None or self.angle_data is None:
-            # Wait for both angle and lidar data to be available
+            # Wait until both lidar and angle data are available.
             return
-        
-        angle = self.angle_data[2]
-        lidar_data = self.lidar_data
 
-        # Adjust the angle to match the lidar's reference frame (assuming lidar data starts from the front)
-        angle = -angle + np.pi
+        # Extract the object's angles. Assumes that angles start at index 2.
+        angles = self.angle_data[2:]
+        lidar_msg = self.lidar_data
+        valid_distances = []
+        range_min = lidar_msg.range_min
+        range_max = lidar_msg.range_max
 
-        # Compute the lidar scan index corresponding to the given angle
-        index = int((angle - lidar_data.angle_min) / lidar_data.angle_increment)
+        for angle in angles:
+            # Adjust the angle to match the lidar's coordinate frame.
+            # (Assumes lidar scan 0 is at the front; adjust if needed.)
+            adjusted_angle = -angle + np.pi
 
-        # Ensure the index is within the valid range
-        if index < 0 or index >= len(lidar_data.ranges):
-            msg = Float32MultiArray()
-            timestamp = float(lidar_data.header.stamp.sec + lidar_data.header.stamp.nanosec * 1e-9)
-            msg.data = [timestamp, 0.0, -1.0]  # Invalid range, -1 indicates no valid detection
-        else:
-            msg = Float32MultiArray()
+            # Compute the index into the lidar scan array.
+            index = int((adjusted_angle - lidar_msg.angle_min) / lidar_msg.angle_increment)
 
-            dist = lidar_data.ranges[index]
+            # Check if the index is within the valid range.
+            if index < 0 or index >= len(lidar_msg.ranges):
+                self.get_logger().warning(f"Angle {angle:.3f} (adjusted: {adjusted_angle:.3f}) yields invalid index {index}.")
+                continue
 
-            range_min = lidar_data.range_min
-            range_max = lidar_data.range_max
+            dist = lidar_msg.ranges[index]
 
-            if dist < range_min or dist > range_max:
-                timestamp = float(lidar_data.header.stamp.sec + lidar_data.header.stamp.nanosec * 1e-9)
-                msg.data = [timestamp, 0.0, -1.0]  # Valid range
+            # Validate the distance measurement.
+            if dist < range_min or dist > range_max or np.isnan(dist) or np.isinf(dist):
+                self.get_logger().debug(f"Distance {dist} at index {index} is out of range.")
+                continue
+
+            valid_distances.append(dist)
+
+        # If we found valid distances, filter out outliers.
+        if valid_distances:
+            distances_arr = np.array(valid_distances)
+
+            # If enough samples exist, use the IQR method to filter out outliers.
+            if len(distances_arr) >= 3:
+                Q1 = np.percentile(distances_arr, 25)
+                Q3 = np.percentile(distances_arr, 75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+                filtered = distances_arr[(distances_arr >= lower_bound) & (distances_arr <= upper_bound)]
+                if filtered.size > 0:
+                    mean_distance = float(np.mean(filtered))
+                else:
+                    # If filtering removes all samples, fall back to the mean of all distances.
+                    mean_distance = float(np.mean(distances_arr))
             else:
-                timestamp = float(lidar_data.header.stamp.sec + lidar_data.header.stamp.nanosec * 1e-9)
-                msg.data = [timestamp, 1.0, lidar_data.ranges[index]]  # Valid range
+                # If only one or two samples are available, compute the mean directly.
+                mean_distance = float(np.mean(distances_arr))
+        else:
+            # No valid distances were found.
+            mean_distance = -1.0
 
-        self.get_logger().info(f"Object Range: {msg.data[2]}")
+        # Build and publish the range message.
+        range_msg = Float32MultiArray()
+        # Use the lidar header's timestamp if available.
+        timestamp = float(lidar_msg.header.stamp.sec + lidar_msg.header.stamp.nanosec * 1e-9)
+        # The message structure is: [timestamp, flag, mean_distance]
+        flag = 1.0 if mean_distance != -1.0 else 0.0
+        range_msg.data = [timestamp, flag, mean_distance]
 
-        # Publish the computed range along with the timestamp
-        self.range_publisher.publish(msg)
+        self.get_logger().info(f"Computed Mean Range: {mean_distance:.3f} (from distances: {valid_distances})")
+        self.range_publisher.publish(range_msg)
 
 def main(args=None):
     """

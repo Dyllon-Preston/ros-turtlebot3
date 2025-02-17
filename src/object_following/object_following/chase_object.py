@@ -156,6 +156,10 @@ class ChaseObject(Node):
             angle_effort = self.angle_PID(angle_error, t_angle)
             range_effort = self.range_PID(range_error, t_range)
 
+            # Clip the effort values to the valid range
+            angle_effort = max(min(angle_effort, 1.0), -1.0)
+            range_effort = max(min(range_effort, 1.0), -1.0)
+
             # Create and publish the Twist message
             twist = Twist()
             twist.angular.z = angle_effort
