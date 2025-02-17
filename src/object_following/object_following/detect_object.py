@@ -43,7 +43,7 @@ class DetectObject(Node):
 
         # Subscribers to image and HSV data
         self._img_subscriber = self.create_subscription(
-            CompressedImage, '/simulated_camera/image_raw/compressed', self._image_callback, 10
+            CompressedImage, '/image_raw/compressed', self._image_callback, 10
         )
         self.hsv_subscriber = self.create_subscription(
             Int32MultiArray, '/selected_hsv', self._hsv_callback, 10
