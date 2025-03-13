@@ -72,7 +72,7 @@ class ObjectRange(Node):
         for r, theta in zip(sorted_ranges, sorted_angles):
             x = r * np.cos(theta)  # X in robot frame
             y = r * np.sin(theta)  # Y in robot frame
-            z = 0  # No height information from 2D LiDAR
+            z = 0.0  # No height information from 2D LiDAR
             obstacle_vectors.extend([x, y, z])  # Flatten into a list
 
         # Publish the ordered list of obstacle vectors as a Float64MultiArray
