@@ -70,12 +70,14 @@ class DebugRange(Node):
             cv2.line(img, (self.img_center, self.img_center), (pixel_x, pixel_y), (255, 255, 0), 2)
         
         # Display the debug image
+        self.get_logger().info("Displaying debug image.")
         cv2.imshow("Debug Range", img)
         cv2.waitKey(1)  # Update the window
 
 def main(args=None):
     rclpy.init(args=args)
     node = DebugRange()
+    rclpy.spin(node)
     cv2.destroyAllWindows()
     node.destroy_node()
     rclpy.shutdown()

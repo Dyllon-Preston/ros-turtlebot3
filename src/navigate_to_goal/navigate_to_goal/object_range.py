@@ -38,6 +38,8 @@ class ObjectRange(Node):
             Float64MultiArray, '/obstacle_vectors', 10
         )
 
+        self.diff_threshold = 0.5  # Minimum difference between ranges to detect a new obstacle
+
     def lidar_callback(self, msg: LaserScan):
         """
         Callback function to process LiDAR data and publish an ordered list of obstacle vectors.
@@ -53,8 +55,11 @@ class ObjectRange(Node):
         ranges = np.array(msg.ranges)
         angles = np.arange(angle_min, angle_min + len(ranges) * angle_increment, angle_increment)
 
+        # Calculate range differences
+        range_diffs = np.diff(ranges)
+
         # Filter out invalid readings
-        valid_mask = (ranges > range_min) & (ranges < range_max)
+        valid_mask = (ranges > range_min) & (ranges < range_max) & (range_diffs > self.diff_threshold)
         valid_ranges = ranges[valid_mask]
         valid_angles = angles[valid_mask]
 
