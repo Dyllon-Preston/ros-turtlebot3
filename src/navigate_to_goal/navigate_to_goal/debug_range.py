@@ -76,10 +76,6 @@ class DebugRange(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = DebugRange()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
     cv2.destroyAllWindows()
     node.destroy_node()
     rclpy.shutdown()
