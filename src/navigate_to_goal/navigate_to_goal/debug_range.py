@@ -4,7 +4,7 @@ Debug Range Node (debug_range.py):
 Subscribes to obstacle vector data and displays an image that shows the different distance vectors 
 relative to the robot's local coordinate frame.
 
-The node expects data from the /obstacle_vectors topic as a flattened Float32MultiArray in the format:
+The node expects data from the /obstacle_vectors topic as a flattened Float64MultiArray in the format:
 [x1, y1, z1, x2, y2, z2, ..., xN, yN, zN]
 
 The image shows:
@@ -18,14 +18,14 @@ from rclpy.node import Node
 import numpy as np
 import cv2
 
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Float64MultiArray
 
 class DebugRange(Node):
     def __init__(self):
         super().__init__('debug_range')
         # Subscribe to the obstacle vector topic
         self.subscription = self.create_subscription(
-            Float32MultiArray,
+            Float64MultiArray,
             '/obstacle_vectors',
             self.obstacle_callback,
             10
@@ -39,7 +39,7 @@ class DebugRange(Node):
         # Create an OpenCV window to display the debug image
         cv2.namedWindow("Debug Range", cv2.WINDOW_NORMAL)
 
-    def obstacle_callback(self, msg: Float32MultiArray):
+    def obstacle_callback(self, msg: Float64MultiArray):
         # Convert the flattened array to an (N x 3) numpy array
         data = msg.data
         if len(data) % 3 != 0:
