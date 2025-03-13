@@ -10,6 +10,69 @@ qos_profile = QoSProfile(
     reliability=QoSReliabilityPolicy.BEST_EFFORT
 )
 
+def segment_obstacles(ranges, angles, range_min, range_max, diff_threshold, min_observations = 3):
+    """
+    Segments the LiDAR scan data into obstacles using DFS while skipping NaN values.
+    
+    Parameters:
+        ranges (np.array): Array of range measurements.
+        angles (np.array): Array of corresponding angles.
+        range_min (float): Minimum valid range.
+        range_max (float): Maximum valid range.
+        diff_threshold (float): Maximum allowed difference between consecutive readings 
+                                to consider them part of the same obstacle.
+        min_observations (int): Minimum number of readings required to classify a segment as an obstacle.
+                                
+    Returns:
+        valid_ranges (list): List of minimum ranges for each detected obstacle.
+        valid_angles (list): List of angles corresponding to the minimum range for each obstacle.
+    """
+    n = len(ranges)
+    visited = [False] * n
+    segments = []
+    
+    def dfs(idx, segment):
+        visited[idx] = True
+        segment.append(idx)
+        # Check neighbors in the circular array (previous and next)
+        for neighbor in [(idx - 1) % n, (idx + 1) % n]:
+            if visited[neighbor]:
+                continue
+            # Skip if neighbor reading is NaN
+            if np.isnan(ranges[neighbor]):
+                visited[neighbor] = True
+                continue
+            # Only consider valid measurements
+            if ranges[neighbor] < range_min or ranges[neighbor] > range_max:
+                visited[neighbor] = True
+                continue
+            # Check if the difference is within threshold to be in the same segment
+            if abs(ranges[idx] - ranges[neighbor]) < diff_threshold:
+                dfs(neighbor, segment)
+    
+    # Iterate over all indices and use DFS to segment contiguous measurements
+    for i in range(n):
+        if visited[i]:
+            continue
+        if np.isnan(ranges[i]) or ranges[i] < range_min or ranges[i] > range_max:
+            visited[i] = True
+            continue
+        segment = []
+        dfs(i, segment)
+        if len(segment) >= min_observations:  # Only keep valid segments
+            segments.append(segment)
+    
+    # For each segment, select the measurement with the minimum range.
+    valid_ranges = []
+    valid_angles = []
+    for seg in segments:
+        # Choose the index with the minimum range from the segment
+        min_idx = min(seg, key=lambda idx: ranges[idx])
+        valid_ranges.append(ranges[min_idx])
+        valid_angles.append(angles[min_idx])
+    
+    return valid_ranges, valid_angles
+
 class ObjectRange(Node):
 
     """
@@ -38,7 +101,8 @@ class ObjectRange(Node):
             Float64MultiArray, '/obstacle_vectors', 10
         )
 
-        self.diff_threshold = 0.5  # Minimum difference between ranges to detect a new obstacle
+        self.diff_threshold = 0.15  # Minimum difference between ranges to detect a new obstacle
+        self.observations_threshold = 5
 
     def lidar_callback(self, msg: LaserScan):
         """
@@ -56,21 +120,12 @@ class ObjectRange(Node):
         angles = np.arange(angle_min, angle_min + len(ranges) * angle_increment, angle_increment)
 
         # Find obstacles based on gaps in the range data
-        valid_ranges = []
-        valid_angles = []
-        r_min = ranges[0]
-        a_min = angles[0]
-        for i in range(1, len(ranges)):
-            if ranges[i] < range_min or ranges[i] > range_max:
-                continue
-            if abs(ranges[i] - ranges[i - 1]) > self.diff_threshold:
-                valid_ranges.append(r_min)
-                valid_angles.append(a_min)
-                r_min = float('inf')
-            else:
-                r_min, a_min = ranges[i], angles[i] if ranges[i] < r_min else r_min, a_min
+        valid_ranges, valid_angles = segment_obstacles(ranges, angles, range_min, 1, self.diff_threshold, self.observations_threshold)
+        valid_ranges = np.array(valid_ranges)
+        valid_angles = np.array(valid_angles)
+        valid_angles += np.pi/2
 
-        if valid_ranges.size == 0:
+        if len(valid_ranges) == 0:
             self.get_logger().warn("No valid obstacles detected.")
             return
 
