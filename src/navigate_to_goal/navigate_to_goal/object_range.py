@@ -55,13 +55,20 @@ class ObjectRange(Node):
         ranges = np.array(msg.ranges)
         angles = np.arange(angle_min, angle_min + len(ranges) * angle_increment, angle_increment)
 
-        # Calculate range differences
-        range_diffs = np.diff(ranges)
-
-        # Filter out invalid readings
-        valid_mask = (ranges > range_min) & (ranges < range_max) & (range_diffs > self.diff_threshold)
-        valid_ranges = ranges[valid_mask]
-        valid_angles = angles[valid_mask]
+        # Find obstacles based on gaps in the range data
+        valid_ranges = []
+        valid_angles = []
+        r_min = ranges[0]
+        a_min = angles[0]
+        for i in range(1, len(ranges)):
+            if ranges[i] < range_min or ranges[i] > range_max:
+                continue
+            if abs(ranges[i] - ranges[i - 1]) > self.diff_threshold:
+                valid_ranges.append(r_min)
+                valid_angles.append(a_min)
+                r_min = float('inf')
+            else:
+                r_min, a_min = ranges[i], angles[i] if ranges[i] < r_min else r_min, a_min
 
         if valid_ranges.size == 0:
             self.get_logger().warn("No valid obstacles detected.")
