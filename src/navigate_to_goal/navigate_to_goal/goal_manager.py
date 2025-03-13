@@ -17,9 +17,8 @@ Notes:
 
 import rclpy
 from rclpy.node import Node
-import pandas as pd
 import numpy as np
-import math
+import os
 
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float32MultiArray, String
@@ -29,12 +28,23 @@ class GoalManager(Node):
         super().__init__('goal_manager')
         
         # Load goal file (assumed to be in the package directory or provided via parameter)
-        goal_file = self.declare_parameter('goal_file', 'goals.txt').value
+        print(os.getcwd())
+        goal_file = os.path.join(os.getcwd(), 'src/navigate_to_goal/navigate_to_goal/wayPoints.txt')
         try:
-            # Using pandas to read the CSV file; the file must have a header row.
-            self.goals_df = pd.read_csv(goal_file)
-            self.goals = self.goals_df.to_numpy()  # shape (N, 5): [x, y, z, distTol, waitTime]
-            self.get_logger().info(f"Loaded {self.goals.shape[0]} goals from {goal_file}.")
+            # Read and parse the goal file manually
+            with open(goal_file, 'r') as f:
+                lines = f.readlines()
+            
+            # Skip the header row and parse the data
+            data = []
+            for line in lines[1:]:  # Skip header row
+                if line.strip():  # Skip empty lines
+                    values = [float(val.strip()) for val in line.split(',')]
+                    if len(values) == 5:
+                        data.append(values)
+            
+            self.goals = np.array(data)  # shape (N, 5): [x, y, z, distTol, waitTime]
+            self.get_logger().info(f"Loaded {len(data)} goals from {goal_file}.")
         except Exception as e:
             self.get_logger().error(f"Failed to load goal file: {e}")
             self.goals = np.empty((0, 5))

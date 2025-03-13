@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float32MultiArray
 import numpy as np
 
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy
@@ -82,7 +82,7 @@ class ObjectRange(Node):
     - /scan (LaserScan): LiDAR scan data containing distance measurements.
     
     Publishes:
-    - /object_positions (Float64MultiArray): List of detected object positions in [x, y, z] format.
+    - /obstacle_vectors (Float32MultiArray): List of detected object positions in [x, y, z] format.
     """
 
     def __init__(self):
@@ -98,7 +98,7 @@ class ObjectRange(Node):
 
         # Obstacle Vector Publisher
         self.obstacle_publisher = self.create_publisher(
-            Float64MultiArray, '/obstacle_vectors', 10
+            Float32MultiArray, '/obstacle_vectors', 10
         )
 
         self.diff_threshold = 0.15  # Minimum difference between ranges to detect a new obstacle
@@ -142,8 +142,8 @@ class ObjectRange(Node):
             z = 0.0  # No height information from 2D LiDAR
             obstacle_vectors.extend([x, y, z])  # Flatten into a list
 
-        # Publish the ordered list of obstacle vectors as a Float64MultiArray
-        msg = Float64MultiArray()
+        # Publish the ordered list of obstacle vectors as a Float32MultiArray
+        msg = Float32MultiArray()
         msg.data = obstacle_vectors
         self.obstacle_publisher.publish(msg)
 
