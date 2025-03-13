@@ -34,7 +34,7 @@ class DebugRange(Node):
         # Define image parameters
         self.img_size = 600          # Create a 600x600 pixel image
         self.img_center = self.img_size // 2
-        self.scale = 100             # Scale: 100 pixels per meter
+        self.scale = 300             # Scale: 100 pixels per meter
         
         # Create an OpenCV window to display the debug image
         cv2.namedWindow("Debug Range", cv2.WINDOW_NORMAL)
