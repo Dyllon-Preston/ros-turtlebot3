@@ -23,10 +23,12 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'actual_odom = navigate_to_goal.actual_odom:main',
             'object_range = navigate_to_goal.object_range:main',
             'debug_range = navigate_to_goal.debug_range:main',
             'goal_manager = navigate_to_goal.goal_manager:main',
-            'state_manager = navigate_to_goal.state_manager',
+            'state_manager = navigate_to_goal.state_manager:main',
+            'go_to_goal = navigate_to_goal.go_to_goal:main',
         ],
     },
 )

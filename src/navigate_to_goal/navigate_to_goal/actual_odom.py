@@ -6,7 +6,7 @@ from geometry_msgs.msg import Point
 
 import numpy as np
 
-class actual_odom(Node):
+class ActualOdom(Node):
     def __init__(self):
         super().__init__('actual_odom')
         # State (for the update_Odometry code)
@@ -62,14 +62,13 @@ class actual_odom(Node):
         val.z = self.globalAng
 
         self.actual_odom_pub.publish(val)
-        self.get_logger().info('Transformed global pose is x:{}, y:{}, a:{}'.format(self.globalPos.x,self.globalPos.y,self.globalAng))
+        # self.get_logger().info('Transformed global pose is x:{}, y:{}, a:{}'.format(self.globalPos.x,self.globalPos.y,self.globalAng))
     
 def main(args=None):
     rclpy.init(args=args)
-    print("Actual Odom opened!")
-    print_odom = actual_odom()
-    rclpy.spin(print_odom)
-    print_odom.destroy_node()
+    node = ActualOdom()
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
 if __name__=='__main__':

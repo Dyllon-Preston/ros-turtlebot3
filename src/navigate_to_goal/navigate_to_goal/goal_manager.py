@@ -20,7 +20,7 @@ from rclpy.node import Node
 import numpy as np
 import os
 
-from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Point
 from std_msgs.msg import Float32MultiArray, String
 
 class GoalManager(Node):
@@ -28,7 +28,6 @@ class GoalManager(Node):
         super().__init__('goal_manager')
         
         # Load goal file (assumed to be in the package directory or provided via parameter)
-        print(os.getcwd())
         goal_file = os.path.join(os.getcwd(), 'src/navigate_to_goal/navigate_to_goal/wayPoints.txt')
         try:
             # Read and parse the goal file manually
@@ -54,8 +53,8 @@ class GoalManager(Node):
         self.wait_start_time = None  # Timestamp when the robot first enters goal tolerance
         
         # Subscriber: listen to odometry to get robot's current position
-        self.odom_sub = self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
-        self.current_pose = None  # Will be set to [x, y]
+        self.odom_sub = self.create_subscription(Point, '/actual_odom', self.odom_callback, 1)
+        self.robot = None
         
         # Publishers:
         # Publish current goal (as a flattened list: [x, y, z, distTol, waitTime])
@@ -66,12 +65,18 @@ class GoalManager(Node):
         # Timer callback for state management (10 Hz)
         self.timer = self.create_timer(0.1, self.timer_callback)
         
-    def odom_callback(self, msg: Odometry):
+    def odom_callback(self, msg: Point):
         """
         Update the current robot pose from odometry.
         """
-        pos = msg.pose.pose.position
-        self.current_pose = np.array([pos.x, pos.y])
+        """
+        Callback to update the robot's current pose and orientation from /odom.
+        """
+        self.robot = {
+            'x': msg.x,
+            'y': msg.y,
+            'theta': msg.z
+        }
         
     def timer_callback(self):
         """
@@ -92,22 +97,23 @@ class GoalManager(Node):
         # Get current goal parameters
         current_goal = self.goals[self.current_goal_index]  # [x, y, z, distTol, waitTime]
         goal_x, goal_y, goal_z, distTol, waitTime = current_goal
-        
+
         # Publish the current goal as a flattened list of floats
         goal_msg = Float32MultiArray()
         goal_msg.data = [goal_x, goal_y, goal_z, distTol, waitTime]
         self.goal_pub.publish(goal_msg)
         
         # Check if robot's pose is available to evaluate progress
-        if self.current_pose is None:
+        if self.robot is None:
             return
         
         # Compute the distance from the robot to the current goal (using x,y coordinates)
         goal_position = np.array([goal_x, goal_y])
-        distance_to_goal = np.linalg.norm(goal_position - self.current_pose)
+        robot_pos = np.array([self.robot['x'], self.robot['y']])
+        distance_to_goal = np.linalg.norm(goal_position - robot_pos)
         
         # If the robot is within the tolerance, start (or continue) the waiting timer
-        if distance_to_goal < distTol:
+        if distance_to_goal < 0.1:
             if self.wait_start_time is None:
                 self.wait_start_time = self.get_clock().now()
                 self.get_logger().info(f"Entered goal region (Goal {self.current_goal_index}) - starting wait timer.")
@@ -124,6 +130,8 @@ class GoalManager(Node):
             if self.wait_start_time is not None:
                 self.get_logger().info(f"Left goal region (Goal {self.current_goal_index}); resetting wait timer.")
             self.wait_start_time = None
+        
+
 
 def main(args=None):
     rclpy.init(args=args)

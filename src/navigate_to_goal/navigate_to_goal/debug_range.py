@@ -18,14 +18,14 @@ from rclpy.node import Node
 import numpy as np
 import cv2
 
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float32MultiArray
 
 class DebugRange(Node):
     def __init__(self):
         super().__init__('debug_range')
         # Subscribe to the obstacle vector topic
         self.subscription = self.create_subscription(
-            Float64MultiArray,
+            Float32MultiArray,
             '/obstacle_vectors',
             self.obstacle_callback,
             10
@@ -39,7 +39,7 @@ class DebugRange(Node):
         # Create an OpenCV window to display the debug image
         cv2.namedWindow("Debug Range", cv2.WINDOW_NORMAL)
 
-    def obstacle_callback(self, msg: Float64MultiArray):
+    def obstacle_callback(self, msg: Float32MultiArray):
         # Convert the flattened array to an (N x 3) numpy array
         data = msg.data
         if len(data) % 3 != 0:

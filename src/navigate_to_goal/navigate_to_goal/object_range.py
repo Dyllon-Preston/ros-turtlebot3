@@ -127,7 +127,9 @@ class ObjectRange(Node):
 
         if len(valid_ranges) == 0:
             self.get_logger().warn("No valid obstacles detected.")
-            return
+            msg = Float32MultiArray()
+            msg.data = []
+            self.obstacle_publisher.publish(msg)
 
         # Sort obstacles by distance
         sorted_indices = np.argsort(valid_ranges)
@@ -147,7 +149,7 @@ class ObjectRange(Node):
         msg.data = obstacle_vectors
         self.obstacle_publisher.publish(msg)
 
-        self.get_logger().info(f'Published {len(obstacle_vectors) // 3} sorted obstacle vectors.')
+        # self.get_logger().info(f'Published {len(obstacle_vectors) // 3} sorted obstacle vectors.')
 
 def main(args=None):
     rclpy.init(args=args)
