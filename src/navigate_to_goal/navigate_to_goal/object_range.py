@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
@@ -98,7 +100,7 @@ class ObjectRange(Node):
 
         # Obstacle Vector Publisher
         self.obstacle_publisher = self.create_publisher(
-            Float32MultiArray, '/obstacle_vectors', 10
+            Float32MultiArray, '/obstacle_vectors', 1
         )
 
         self.diff_threshold = 0.15  # Minimum difference between ranges to detect a new obstacle
@@ -130,6 +132,7 @@ class ObjectRange(Node):
             msg = Float32MultiArray()
             msg.data = []
             self.obstacle_publisher.publish(msg)
+            return
 
         # Sort obstacles by distance
         sorted_indices = np.argsort(valid_ranges)
@@ -148,8 +151,6 @@ class ObjectRange(Node):
         msg = Float32MultiArray()
         msg.data = obstacle_vectors
         self.obstacle_publisher.publish(msg)
-
-        # self.get_logger().info(f'Published {len(obstacle_vectors) // 3} sorted obstacle vectors.')
 
 def main(args=None):
     rclpy.init(args=args)

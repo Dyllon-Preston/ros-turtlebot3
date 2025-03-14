@@ -2,11 +2,11 @@ from setuptools import find_packages, setup
 from glob import glob
 import os
 
-package_name = 'object_tracking'
+package_name = 'navigate_to_goal'
 
 setup(
     name=package_name,
-    version='0.0.1',
+    version='0.0.0',
     packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -18,14 +18,17 @@ setup(
     zip_safe=True,
     maintainer='Dyllon Preston',
     maintainer_email='dpreston9@gatech.edu',
-    description='Simple object tracking package',
+    description='Simple navigation with object avoidance',
     license='Apache License 2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'select_object = object_tracking.select_object:main',
-            'find_object = object_tracking.find_object:main',
-            'rotate_robot = object_tracking.rotate_robot:main',
+            'actual_odom = navigate_to_goal.actual_odom:main',
+            'object_range = navigate_to_goal.object_range:main',
+            'debug_range = navigate_to_goal.debug_range:main',
+            'goal_manager = navigate_to_goal.goal_manager:main',
+            'state_manager = navigate_to_goal.state_manager:main',
+            'go_to_goal = navigate_to_goal.go_to_goal:main',
         ],
     },
 )

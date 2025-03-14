@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+
+
 """
 Goal Manager Node (goal_manager.py):
 Reads in goal locations from a text file, publishes the current target goal,
@@ -58,9 +60,9 @@ class GoalManager(Node):
         
         # Publishers:
         # Publish current goal (as a flattened list: [x, y, z, distTol, waitTime])
-        self.goal_pub = self.create_publisher(Float32MultiArray, '/current_goal', 10)
+        self.goal_pub = self.create_publisher(Float32MultiArray, '/current_goal', 1)
         # Publish goal status (e.g., "GOALS_COMPLETE")
-        self.status_pub = self.create_publisher(String, '/goal_status', 10)
+        self.status_pub = self.create_publisher(String, '/goal_status', 1)
         
         # Timer callback for state management (10 Hz)
         self.timer = self.create_timer(0.1, self.timer_callback)
@@ -120,6 +122,7 @@ class GoalManager(Node):
             else:
                 # Calculate elapsed time in seconds
                 elapsed = (self.get_clock().now() - self.wait_start_time).nanoseconds * 1e-9
+                self.get_logger().info(f"In goal (Goal {self.current_goal_index}): Elapsed Time {elapsed}")
                 if elapsed >= waitTime:
                     self.get_logger().info(f"Goal {self.current_goal_index} completed after waiting {waitTime} seconds.")
                     # Advance to the next goal and reset the wait timer

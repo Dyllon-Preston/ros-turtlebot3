@@ -40,7 +40,7 @@ class GoToGoal(Node):
         self.target = None           # Dictionary: {'x': float, 'y': float, 'z': float, 'distTol': float, 'waitTime': float}
         
         # Control gains and parameters
-        self.k = 1
+        self.k = 0.75
         self.l = 0.03 # 3 cm
         
     def target_callback(self, msg: Float32MultiArray):
@@ -85,16 +85,10 @@ class GoToGoal(Node):
         e_x = x_t - x_p
         e_y = y_t - y_p
 
-        if abs(e_x) + abs(e_y) < 0.11:
-            twist = Twist()
-            twist.linear.x = 0.0
-            twist.angular.z = 0.0
-            self.cmd_vel.publish(twist)
-
         # self.get_logger().info(f"(e_x, e_y): ({e_x} | {e_y})")
 
         v = k*(np.cos(theta_r) * e_x + np.sin(theta_r) * e_y)
-        w = k/l*(-np.sin(theta_r) * e_x + np.cos(theta_r) * e_y)
+        w = 2/l*(-np.sin(theta_r) * e_x + np.cos(theta_r) * e_y)
         
         # Scale v and w proportionally to each other so they respect limits
         v_max = 0.2 # m/s
