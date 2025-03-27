@@ -12,6 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/worlds', glob('worlds/*.world')), # Add world file
         (os.path.join('share', package_name), glob('launch/*.launch.py')),  # Add launch file
     ],
     install_requires=['setuptools'],
@@ -29,6 +30,8 @@ setup(
             'goal_manager = navigate_to_goal.goal_manager:main',
             'state_manager = navigate_to_goal.state_manager:main',
             'go_to_goal = navigate_to_goal.go_to_goal:main',
+            'slam = navigate_to_goal.slam:main',
+            'slam_debug = navigate_to_goal.slam_debug:main',
         ],
     },
 )

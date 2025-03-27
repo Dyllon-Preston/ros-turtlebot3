@@ -1,0 +1,159 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="test_obstacles">
+    <!-- Ground Plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- Light Source -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- Obstacles: Boxes -->
+    <!-- Box 1: Red -->
+    <model name="box1">
+      <static>true</static>
+      <pose>1.25 0.5 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.5</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.5</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Box 2: Green -->
+    <model name="box2">
+      <static>true</static>
+      <pose>1.0 1.0 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.5</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.5</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0 1 0 1</ambient>
+            <diffuse>0 1 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Box 3: Blue -->
+    <model name="box3">
+      <static>true</static>
+      <pose>0.5 1.0 0.25 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.5</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.5</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0 0 1 1</ambient>
+            <diffuse>0 0 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Waypoint Markers (Invisible to the Robot) -->
+    <!-- Waypoint 1 Marker -->
+    <model name="waypoint1">
+      <static>true</static>
+      <pose>1.5 0 0.01 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.2 0.2 0</size> <!-- Invisible square -->
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 0 1</ambient> <!-- Yellow marker -->
+            <diffuse>1 1 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Waypoint 2 Marker -->
+    <model name="waypoint2">
+      <static>true</static>
+      <pose>1.5 1.4 0.01 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.2 0.2 0</size> <!-- Invisible square -->
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 0 1</ambient> <!-- Yellow marker -->
+            <diffuse>1 1 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Waypoint 3 Marker -->
+    <model name="waypoint3">
+      <static>true</static>
+      <pose>0 1.4 0.01 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.2 0.2 0</size> <!-- Invisible square -->
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 0 1</ambient> <!-- Yellow marker -->
+            <diffuse>1 1 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Robot Marker -->
+    <!-- Using the TurtleBot3 Burger model as the robot marker -->
+    <include>
+      <uri>model://turtlebot3_burger</uri>
+      <pose>0 0 0.01 0 0 0</pose>
+    </include>
+
+  </world>
+</sdf>
